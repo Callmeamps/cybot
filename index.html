@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>cybot — 3D AI Agent</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --cybot-canvas: #050816;
+      --cybot-canvas-deep: #02050d;
+      --cybot-canvas-elevated: #09111f;
+      --cybot-surface: #0d1628;
+      --cybot-surface-2: #121d33;
+      --cybot-surface-3: #182540;
+      --cybot-surface-glass: rgba(11, 18, 34, 0.78);
+      --cybot-border-soft: rgba(148, 167, 201, 0.16);
+      --cybot-border-strong: rgba(168, 186, 219, 0.28);
+      --cybot-text-primary: #f3f7ff;
+      --cybot-text-secondary: #b8c4da;
+      --cybot-text-tertiary: #8e9bb2;
+      --cybot-accent-primary: #7ddcff;
+      --cybot-accent-primary-strong: #94bcff;
+      --cybot-accent-primary-soft: rgba(125, 220, 255, 0.14);
+      --cybot-accent-secondary: #79edd8;
+      --cybot-accent-ink: #04101d;
+      --cybot-status-success: #7ce4b0;
+      --cybot-status-warning: #ffc56f;
+      --cybot-status-danger: #ff8d98;
+      --cybot-layer-overlay: rgba(2, 7, 17, 0.68);
+      --cybot-holo-glow: rgba(148, 188, 255, 0.18);
+      --cybot-holo-glow-secondary: rgba(121, 237, 216, 0.14);
+      --cybot-holo-glow-depth: rgba(59, 95, 172, 0.26);
+      --cybot-hud-text: rgba(125, 220, 255, 0.45);
+      --cybot-danger-soft: rgba(255, 141, 152, 0.16);
+    }
+    body { background: var(--cybot-canvas); overflow: hidden; width: 100vw; height: 100vh; font-family: 'Segoe UI', system-ui, sans-serif; color: var(--cybot-text-primary); }
+    #canvas-container { width: 100vw; height: 100vh; position: relative; }
+    canvas { display: block; }
+
+    /* ─── Chat Overlay ─── */
+    .chat-overlay {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 420px;
+      max-height: 70vh;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+      z-index: 100;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.3s, transform 0.3s;
+    }
+    .chat-overlay.is-open { opacity: 1; transform: translateY(0); pointer-events: auto; }
+
+    /* ─── Holographic Frame ─── */
+    .holo-frame {
+      position: relative;
+      background: var(--cybot-surface-glass);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--cybot-border-soft);
+      border-radius: 12px;
+      padding: 14px 18px;
+      color: var(--cybot-text-primary);
+      font-size: 14px;
+      line-height: 1.5;
+      box-shadow:
+        0 0 8px var(--cybot-holo-glow),
+        inset 0 0 12px var(--cybot-holo-glow-depth);
+      animation: holo-in 0.4s ease-out;
+    }
+    .holo-frame::before {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      border-radius: 12px;
+      border: 1px solid var(--cybot-border-soft);
+      pointer-events: none;
+    }
+
+    @keyframes holo-in {
+      from { opacity: 0; transform: translateY(8px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* User message — right-aligned, accent tint */
+    .holo-frame.user {
+      align-self: flex-end;
+      max-width: 85%;
+      border-color: var(--cybot-border-strong);
+      background: var(--cybot-accent-primary-soft);
+      box-shadow:
+        0 0 10px var(--cybot-holo-glow),
+        inset 0 0 16px var(--cybot-holo-glow-depth);
+    }
+
+    /* Agent message — left-aligned, neutral tint */
+    .holo-frame.agent {
+      align-self: flex-start;
+      max-width: 85%;
+      border-color: var(--cybot-border-soft);
+      background: var(--cybot-surface-glass);
+    }
+
+    /* Agent label */
+    .holo-frame.agent .agent-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--cybot-accent-primary);
+      margin-bottom: 6px;
+    }
+
+    /* Thinking indicator */
+    .holo-frame.thinking::after {
+      content: '';
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      background: rgba(125, 220, 255, 0.5);
+      border-radius: 50%;
+      margin-left: 4px;
+      animation: pulse-dot 1.2s infinite;
+    }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 1; }
+    }
+
+    /* ─── Chat Header ─── */
+    .chat-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px;
+      background: rgba(10, 15, 40, 0.8);
+      border: 1px solid rgba(125, 220, 255, 0.2);
+      border-radius: 12px;
+      pointer-events: auto;
+      cursor: pointer;
+    }
+    .chat-header .agent-emoji { font-size: 20px; }
+    .chat-header .agent-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: #c0d0ff;
+      letter-spacing: 0.04em;
+    }
+    .chat-header .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--cybot-status-success);
+      box-shadow: 0 0 8px var(--cybot-status-success);
+      margin-left: auto;
+    }
+    .chat-header .toggle-btn {
+      background: none;
+      border: none;
+      color: var(--cybot-accent-primary);
+      font-size: 18px;
+      cursor: pointer;
+      padding: 0 4px;
+    }
+
+    /* ─── Messages Area ─── */
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 50vh;
+      scrollbar-width: thin;
+      scrollbar-color: var(--cybot-accent-primary) transparent;
+    }
+    .chat-messages::-webkit-scrollbar { width: 4px; }
+    .chat-messages::-webkit-scrollbar-thumb { background: var(--cybot-accent-primary); border-radius: 2px; }
+
+    /* ─── Chat Input ─── */
+    .chat-input-wrap {
+      display: flex;
+      gap: 8px;
+      pointer-events: auto;
+    }
+    .chat-input-wrap textarea {
+      flex: 1;
+      background: var(--cybot-surface-glass);
+      border: 1px solid var(--cybot-border-soft);
+      border-radius: 10px;
+      padding: 10px 14px;
+      color: var(--cybot-text-primary);
+      font-family: inherit;
+      font-size: 13px;
+      resize: none;
+      outline: none;
+      min-height: 42px;
+      max-height: 120px;
+      transition: border-color 0.2s;
+    }
+    .chat-input-wrap textarea:focus {
+      border-color: var(--cybot-border-strong);
+    }
+    .chat-input-wrap textarea::placeholder {
+      color: var(--cybot-text-secondary);
+    }
+    .chat-input-wrap button {
+      background: var(--cybot-accent-primary-soft);
+      border: 1px solid var(--cybot-border-soft);
+      border-radius: 10px;
+      color: var(--cybot-accent-primary);
+      font-size: 13px;
+      font-weight: 600;
+      padding: 0 16px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .chat-input-wrap button:hover { background: var(--cybot-accent-primary-soft); }
+    .chat-input-wrap button:disabled { opacity: 0.4; cursor: default; }
+
+    /* ─── HUD ─── */
+    .hud {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      max-width: calc(100vw - 80px);
+      font-size: 11px;
+      color: var(--cybot-hud-text);
+      letter-spacing: 0.05em;
+      z-index: 100;
+      pointer-events: none;
+    }
+    .hud-chip {
+      background: var(--cybot-surface-glass);
+      border: 1px solid var(--cybot-border-soft);
+      border-radius: 999px;
+      padding: 6px 10px;
+      backdrop-filter: blur(8px);
+    }
+
+    /* ─── Loading + Error States ─── */
+    .loading-screen {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      z-index: 200;
+      background:
+        radial-gradient(circle at 50% 45%, var(--cybot-holo-glow), transparent 34%),
+        linear-gradient(180deg, var(--cybot-layer-overlay), var(--cybot-canvas-deep));
+      pointer-events: none;
+    }
+    .loading-card {
+      width: min(360px, calc(100vw - 40px));
+      padding: 22px;
+      border: 1px solid var(--cybot-border-strong);
+      border-radius: 16px;
+      background: var(--cybot-surface-glass);
+      box-shadow: 0 0 30px var(--cybot-holo-glow);
+      text-align: center;
+      backdrop-filter: blur(12px);
+    }
+    .loading-title {
+      color: var(--cybot-accent-primary);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    .loading-text {
+      color: var(--cybot-text-secondary);
+      font-size: 13px;
+    }
+    .spinner {
+      width: 34px;
+      height: 34px;
+      margin: 0 auto 14px;
+      border: 2px solid var(--cybot-border-soft);
+      border-top-color: var(--cybot-accent-primary);
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error-banner {
+      position: fixed;
+      left: 50%;
+      bottom: 22px;
+      transform: translateX(-50%);
+      width: min(520px, calc(100vw - 32px));
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      z-index: 160;
+      background: var(--cybot-danger-soft);
+      border: 1px solid var(--cybot-status-danger);
+      border-radius: 12px;
+      color: var(--cybot-text-primary);
+      box-shadow: 0 0 18px rgba(255, 141, 152, 0.18);
+    }
+    .error-banner span { flex: 1; font-size: 13px; }
+    .error-banner button {
+      background: transparent;
+      border: 0;
+      color: var(--cybot-text-primary);
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+      }
+      .spinner { animation: none; }
+    }
+
+    /* ─── Settings Panel ─── */
+    .settings-panel {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      width: 280px;
+      background: var(--cybot-surface-glass);
+      border: 1px solid var(--cybot-border-soft);
+      border-radius: 12px;
+      padding: 16px;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s;
+    }
+    .settings-panel.is-open { opacity: 1; pointer-events: auto; }
+    .settings-panel h3 {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--cybot-accent-primary);
+      margin-bottom: 12px;
+    }
+    .settings-panel label {
+      display: block;
+      font-size: 11px;
+      color: var(--cybot-text-secondary);
+      margin-bottom: 4px;
+    }
+    .settings-panel select, .settings-panel input[type="text"] {
+      width: 100%;
+      background: var(--cybot-surface-2);
+      border: 1px solid var(--cybot-border-soft);
+      border-radius: 6px;
+      color: var(--cybot-text-primary);
+      font-size: 12px;
+      padding: 6px 10px;
+      margin-bottom: 12px;
+      outline: none;
+    }
+    .settings-panel select:focus, .settings-panel input[type="text"]:focus,
+    .settings-panel input[type="color"]:focus, .settings-panel textarea:focus {
+      border-color: var(--cybot-border-strong);
+    }
+
+    .settings-panel input[type="color"] {
+      width: 100%;
+      height: 34px;
+      background: var(--cybot-surface-2);
+      border: 1px solid var(--cybot-border-soft);
+      border-radius: 6px;
+      margin-bottom: 10px;
+      padding: 2px;
+    }
+
+    .settings-panel textarea {
+      width: 100%;
+      min-height: 60px;
+      background: var(--cybot-surface-2);
+      border: 1px solid var(--cybot-border-soft);
+      border-radius: 6px;
+      color: var(--cybot-text-primary);
+      font-family: inherit;
+      font-size: 12px;
+      padding: 8px 10px;
+      margin-bottom: 10px;
+      outline: none;
+      resize: vertical;
+    }
+
+    .settings-panel details {
+      margin-top: 14px;
+      border-top: 1px solid var(--cybot-border-soft);
+      padding-top: 12px;
+    }
+
+    .settings-panel summary {
+      color: var(--cybot-accent-primary);
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .settings-panel button {
+      width: 100%;
+      background: var(--cybot-accent-primary-soft);
+      border: 1px solid var(--cybot-border-soft);
+      border-radius: 8px;
+      color: var(--cybot-accent-primary);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 8px 10px;
+    }
+
+    .settings-panel button:hover {
+      background: var(--cybot-border-soft);
+    }
+
+    .settings-panel .row-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    @media (max-width: 768px) {
+      .hud { top: 8px; left: 8px; right: 8px; max-width: none; }
+      .hud-chip { font-size: 10px; padding: 5px 8px; }
+      .chat-overlay { bottom: 0; right: 0; width: 100%; max-height: 82vh; padding: 12px; }
+      .chat-overlay .holo-frame { max-width: 90%; }
+      .settings-panel { left: 12px; right: 12px; top: auto; bottom: 12px; width: auto; max-height: 72vh; overflow-y: auto; }
+      .error-banner { bottom: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas-container">
+    <canvas id="scene"></canvas>
+  </div>
+
+  <!-- Chat UI -->
+  <div id="app" x-data="chatApp()">
+    <!-- HUD -->
+    <div class="hud">
+      <span class="hud-chip" x-text="hudCharacter"></span>
+      <span class="hud-chip" x-text="hudModel"></span>
+      <span class="hud-chip" x-text="hudTheme"></span>
+      <span class="hud-chip" x-text="hudGpu"></span>
+      <span class="hud-chip" x-text="hudFps"></span>
+    </div>
+
+    <div class="loading-screen" x-show="isLoading">
+      <div class="loading-card">
+        <div class="spinner"></div>
+        <div class="loading-title">Cybot booting</div>
+        <div class="loading-text" x-text="loadingText"></div>
+      </div>
+    </div>
+
+    <div class="error-banner" x-show="lastError" @click="dismissError()">
+      <span x-text="lastError"></span>
+      <button aria-label="Dismiss error">×</button>
+    </div>
+
+    <!-- Chat overlay -->
+    <div class="chat-overlay" :class="{ 'is-open': isChatOpen }">
+      <div class="chat-header" @click="toggleChat()">
+        <span class="agent-emoji" x-text="activeCharacter.emoji"></span>
+        <span class="agent-name" x-text="activeCharacter.name"></span>
+        <div class="status-dot"></div>
+        <button class="toggle-btn" @click.stop="isChatOpen = !isChatOpen">−</button>
+      </div>
+
+      <div class="chat-messages" x-ref="messages">
+        <template x-for="msg in messages" :key="msg.id">
+          <div class="holo-frame" :class="msg.role">
+            <div x-show="msg.role === 'agent'" class="agent-label" x-text="activeCharacter.name"></div>
+            <div x-html="msg.html"></div>
+          </div>
+        </template>
+        <div x-show="isThinking" class="holo-frame agent thinking">
+          <div class="agent-label" x-text="activeCharacter.name"></div>
+          <span>thinking</span>
+        </div>
+      </div>
+
+      <div class="chat-input-wrap">
+        <textarea
+          x-ref="input"
+          x-model="input"
+          @keydown.enter.prevent="send()"
+          placeholder="Type a message…"
+          :disabled="isThinking"
+        ></textarea>
+        <button @click="send()" :disabled="isThinking || !input.trim()">Send</button>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div class="settings-panel" :class="{ 'is-open': isSettingsOpen }">
+      <h3>Settings</h3>
+      <label>Theme</label>
+      <select x-model="theme" @change="changeTheme()">
+        <template x-for="themeOption in themes" :key="themeOption.id">
+          <option :value="themeOption.id" x-text="themeOption.icon + ' ' + themeOption.label"></option>
+        </template>
+      </select>
+
+      <label>Character</label>
+      <select x-model="character" @change="changeCharacter()">
+        <template x-for="characterOption in characters" :key="characterOption.id">
+          <option :value="characterOption.id" x-text="characterOption.emoji + ' ' + characterOption.name"></option>
+        </template>
+      </select>
+
+      <label>Model</label>
+      <select x-model="model" @change="saveSettings()">
+        <option value="openai/gpt-4o">GPT-4o</option>
+        <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
+        <option value="anthropic/claude-sonnet-4-20250514">Claude Sonnet</option>
+        <option value="google/gemini-2.0-flash-001">Gemini Flash</option>
+      </select>
+
+      <label>API Key</label>
+      <input type="text" x-model="apiKey" placeholder="sk-or-…" @change="saveSettings()" />
+      <label>Endpoint</label>
+      <input type="text" x-model="endpoint" @change="saveSettings()" />
+
+      <details>
+        <summary>Custom theme</summary>
+        <div class="row-2">
+          <label>Theme ID
+            <input type="text" x-model="customTheme.id" placeholder="neon" />
+          </label>
+          <label>Name
+            <input type="text" x-model="customTheme.label" placeholder="Neon Void" />
+          </label>
+        </div>
+        <label>Base
+          <select x-model="customTheme.base">
+            <option value="dark">Dark</option>
+            <option value="light">Light</option>
+          </select>
+        </label>
+        <div class="row-2">
+          <label>Accent
+            <input type="color" x-model="customTheme.accent" />
+          </label>
+          <label>Canvas
+            <input type="color" x-model="customTheme.canvas" />
+          </label>
+        </div>
+        <label>Surface
+          <input type="color" x-model="customTheme.surface" />
+        </label>
+        <label>Text
+          <input type="color" x-model="customTheme.text" />
+        </label>
+        <button @click="createTheme()">Create theme</button>
+      </details>
+
+      <details>
+        <summary>Custom character</summary>
+        <div class="row-2">
+          <label>Character ID
+            <input type="text" x-model="customCharacter.id" placeholder="agent-x" />
+          </label>
+          <label>Emoji
+            <input type="text" x-model="customCharacter.emoji" placeholder="🤖" />
+          </label>
+        </div>
+        <label>Name
+          <input type="text" x-model="customCharacter.name" placeholder="Agent X" />
+        </label>
+        <label>Description
+          <input type="text" x-model="customCharacter.description" placeholder="Short description" />
+        </label>
+        <label>Model path
+          <input type="text" x-model="customCharacter.modelPath" placeholder="/models/avatar.glb" />
+        </label>
+        <label>System prompt prefix
+          <textarea x-model="customCharacter.systemPromptPrefix" placeholder="You are..."></textarea>
+        </label>
+        <button @click="createCharacter()">Create character</button>
+      </details>
+    </div>
+
+    <!-- Toggle settings -->
+    <button
+      style="position:fixed;top:12px;right:12px;background:var(--cybot-surface-glass);border:1px solid var(--cybot-border-soft);border-radius:8px;color:var(--cybot-accent-primary);font-size:16px;width:36px;height:36px;cursor:pointer;z-index:101;"
+      @click="isSettingsOpen = !isSettingsOpen"
+    >⚙</button>
+  </div>
+
+  <script type="module" src="src/ui/ChatOverlay.js"></script>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

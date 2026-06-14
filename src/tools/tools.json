@@ -1,0 +1,37 @@
+[
+  {
+    "id": "code",
+    "icon": "💻",
+    "label": "Code",
+    "description": "Write, refactor, or explain code",
+    "context": "Help me with code."
+  },
+  {
+    "id": "debug",
+    "icon": "🐞",
+    "label": "Debug",
+    "description": "Find and fix issues",
+    "context": "Help me debug this."
+  },
+  {
+    "id": "plan",
+    "icon": "🧭",
+    "label": "Plan",
+    "description": "Break work into steps",
+    "context": "Help me plan this."
+  },
+  {
+    "id": "explain",
+    "icon": "🔎",
+    "label": "Explain",
+    "description": "Clarify concepts or files",
+    "context": "Explain this to me."
+  },
+  {
+    "id": "optimize",
+    "icon": "⚡",
+    "label": "Optimize",
+    "description": "Improve speed or quality",
+    "context": "Help me optimize this."
+  }
+]
