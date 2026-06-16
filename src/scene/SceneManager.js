@@ -45,11 +45,17 @@ export class SceneManager {
     this.controls.target.set(0, 1, 0);
     this.controls.update();
 
-    // Post-processing (conditional)
-    this.composer = new EffectComposer(this.renderer);
-    this.composer.addPass(new RenderPass(this.scene, this.camera));
+    // Post-processing setup — render directly to screen for compatibility
+    this.useComposer = false;
+    this.bloomPass = null;
+    this.vignetteIntensity = 0.35;
 
     if (this.settings.enableBloom) {
+      // Use a simple bloom approach: render to offscreen target, apply bloom, render to screen
+      this.useComposer = true;
+      this.composer = new EffectComposer(this.renderer);
+      this.composer.addPass(new RenderPass(this.scene, this.camera));
+
       this.bloomPass = new UnrealBloomPass(
         new THREE.Vector2(this.width, this.height).multiplyScalar(this.settings.bloomResolution),
         this.settings.bloomStrength,
@@ -57,40 +63,42 @@ export class SceneManager {
         0.7
       );
       this.composer.addPass(this.bloomPass);
-    }
 
-    if (this.settings.enableFxaa) {
-      const fxaaPass = new ShaderPass(FXAAShader);
-      fxaaPass.uniforms['resolution'].value.set(1 / this.width, 1 / this.height);
-      this.composer.addPass(fxaaPass);
-    }
+      if (this.settings.enableFxaa) {
+        const fxaaPass = new ShaderPass(FXAAShader);
+        fxaaPass.uniforms['resolution'].value.set(1 / this.width, 1 / this.height);
+        this.composer.addPass(fxaaPass);
+      }
 
-    // Vignette (cheap, always keep)
-    const vignetteShader = {
-      uniforms: {
-        tDiffuse: { value: null },
-        intensity: { value: 0.35 },
-      },
-      vertexShader: `
-        varying vec2 vUv;
-        void main() {
-          vUv = uv;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-      fragmentShader: `
-        uniform sampler2D tDiffuse;
-        uniform float intensity;
-        varying vec2 vUv;
-        void main() {
-          vec4 color = texture2D(tDiffuse, vUv);
-          vec2 uv = (vUv - 0.5) * 2.0;
-          float v = 1.0 - dot(uv, uv) * intensity;
-          gl_FragColor = vec4(color.rgb * v, color.a);
-        }
-      `,
-    };
-    this.composer.addPass(new ShaderPass(vignetteShader));
+      // Vignette as final pass — must render to screen
+      const vignetteShader = {
+        uniforms: {
+          tDiffuse: { value: null },
+          intensity: { value: this.vignetteIntensity },
+        },
+        vertexShader: `
+          varying vec2 vUv;
+          void main() {
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `,
+        fragmentShader: `
+          uniform sampler2D tDiffuse;
+          uniform float intensity;
+          varying vec2 vUv;
+          void main() {
+            vec4 color = texture2D(tDiffuse, vUv);
+            vec2 uv = (vUv - 0.5) * 2.0;
+            float v = 1.0 - dot(uv, uv) * intensity;
+            gl_FragColor = vec4(color.rgb * v, color.a);
+          }
+        `,
+      };
+      const vignettePass = new ShaderPass(vignetteShader);
+      vignettePass.renderToScreen = true;
+      this.composer.addPass(vignettePass);
+    }
 
     // FPS counter (debug)
     this.showFps = location.search.includes('fps');
@@ -125,7 +133,9 @@ export class SceneManager {
     this.camera.aspect = this.width / this.height;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(this.width, this.height);
-    this.composer.setSize(this.width, this.height);
+    if (this.useComposer) {
+      this.composer.setSize(this.width, this.height);
+    }
   }
 
   onVisibilityChange() {
@@ -142,7 +152,11 @@ export class SceneManager {
     this.lastFrameTime = time;
 
     this.controls.update();
-    this.composer.render();
+    if (this.useComposer) {
+      this.composer.render();
+    } else {
+      this.renderer.render(this.scene, this.camera);
+    }
 
     // Update FPS counter
     if (this.showFps) {
@@ -161,7 +175,7 @@ export class SceneManager {
     window.removeEventListener('resize', this.onResize);
     document.removeEventListener('visibilitychange', this.onVisibilityChange);
     this.renderer.dispose();
-    this.composer.dispose();
+    if (this.useComposer) this.composer.dispose();
     if (this.fpsDiv) this.fpsDiv.remove();
   }
 }
