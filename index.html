@@ -38,80 +38,49 @@
     #canvas-container { width: 100vw; height: 100vh; position: relative; }
     canvas { display: block; }
 
-    /* ─── Chat Overlay ─── */
-    .chat-overlay {
-      position: fixed;
-      bottom: 24px;
-      right: 24px;
-      width: 420px;
-      max-height: 70vh;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      pointer-events: none;
-      z-index: 100;
-      opacity: 0;
-      transform: translateY(20px);
-      transition: opacity 0.3s, transform 0.3s;
-    }
-    .chat-overlay.is-open { opacity: 1; transform: translateY(0); pointer-events: auto; }
-
     /* ─── Holographic Frame ─── */
     .holo-frame {
       position: relative;
-      background: var(--cybot-surface-glass);
-      backdrop-filter: blur(8px);
+      background: rgba(8, 12, 28, 0.85);
+      backdrop-filter: blur(12px);
       border: 1px solid var(--cybot-border-soft);
       border-radius: 12px;
-      padding: 14px 18px;
+      padding: 12px 16px;
       color: var(--cybot-text-primary);
       font-size: 14px;
-      line-height: 1.5;
-      box-shadow:
-        0 0 8px var(--cybot-holo-glow),
-        inset 0 0 12px var(--cybot-holo-glow-depth);
-      animation: holo-in 0.4s ease-out;
-    }
-    .holo-frame::before {
-      content: '';
-      position: absolute;
-      inset: -1px;
-      border-radius: 12px;
-      border: 1px solid var(--cybot-border-soft);
-      pointer-events: none;
+      line-height: 1.6;
+      animation: holo-in 0.35s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     @keyframes holo-in {
-      from { opacity: 0; transform: translateY(8px) scale(0.97); }
-      to { opacity: 1; transform: translateY(0) scale(1); }
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
     /* User message — right-aligned, accent tint */
     .holo-frame.user {
       align-self: flex-end;
-      max-width: 85%;
-      border-color: var(--cybot-border-strong);
-      background: var(--cybot-accent-primary-soft);
-      box-shadow:
-        0 0 10px var(--cybot-holo-glow),
-        inset 0 0 16px var(--cybot-holo-glow-depth);
+      max-width: 88%;
+      background: rgba(125, 220, 255, 0.1);
+      border-color: rgba(125, 220, 255, 0.25);
     }
 
     /* Agent message — left-aligned, neutral tint */
     .holo-frame.agent {
       align-self: flex-start;
-      max-width: 85%;
-      border-color: var(--cybot-border-soft);
-      background: var(--cybot-surface-glass);
+      max-width: 88%;
+      background: rgba(8, 12, 28, 0.9);
     }
 
     /* Agent label */
     .holo-frame.agent .agent-label {
-      font-size: 11px;
+      font-size: 10px;
+      font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.08em;
       color: var(--cybot-accent-primary);
       margin-bottom: 6px;
+      opacity: 0.8;
     }
 
     /* Thinking indicator */
@@ -120,14 +89,14 @@
       display: inline-block;
       width: 6px;
       height: 6px;
-      background: rgba(125, 220, 255, 0.5);
+      background: var(--cybot-accent-primary);
       border-radius: 50%;
       margin-left: 4px;
-      animation: pulse-dot 1.2s infinite;
+      animation: pulse-dot 1.2s ease-in-out infinite;
     }
     @keyframes pulse-dot {
-      0%, 100% { opacity: 0.3; }
-      50% { opacity: 1; }
+      0%, 100% { opacity: 0.3; transform: scale(0.8); }
+      50% { opacity: 1; transform: scale(1); }
     }
 
     /* ─── Chat Header ─── */
@@ -135,23 +104,28 @@
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 10px 16px;
-      background: rgba(10, 15, 40, 0.8);
-      border: 1px solid rgba(125, 220, 255, 0.2);
+      padding: 12px 16px;
+      background: rgba(5, 8, 22, 0.9);
+      border: 1px solid var(--cybot-border-soft);
       border-radius: 12px;
       pointer-events: auto;
       cursor: pointer;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .chat-header:hover {
+      border-color: var(--cybot-border-strong);
+      box-shadow: 0 0 16px rgba(125, 220, 255, 0.1);
     }
     .chat-header .agent-emoji { font-size: 20px; }
     .chat-header .agent-name {
       font-size: 13px;
       font-weight: 600;
-      color: #c0d0ff;
-      letter-spacing: 0.04em;
+      color: var(--cybot-text-primary);
+      letter-spacing: 0.03em;
     }
     .chat-header .status-dot {
-      width: 6px;
-      height: 6px;
+      width: 7px;
+      height: 7px;
       border-radius: 50%;
       background: var(--cybot-status-success);
       box-shadow: 0 0 8px var(--cybot-status-success);
@@ -160,11 +134,13 @@
     .chat-header .toggle-btn {
       background: none;
       border: none;
-      color: var(--cybot-accent-primary);
-      font-size: 18px;
+      color: var(--cybot-text-secondary);
+      font-size: 16px;
       cursor: pointer;
-      padding: 0 4px;
+      padding: 2px 4px;
+      transition: color 0.2s;
     }
+    .chat-header .toggle-btn:hover { color: var(--cybot-accent-primary); }
 
     /* ─── Messages Area ─── */
     .chat-messages {
@@ -188,24 +164,25 @@
     }
     .chat-input-wrap textarea {
       flex: 1;
-      background: var(--cybot-surface-glass);
+      background: rgba(5, 8, 22, 0.85);
       border: 1px solid var(--cybot-border-soft);
       border-radius: 10px;
-      padding: 10px 14px;
+      padding: 11px 14px;
       color: var(--cybot-text-primary);
       font-family: inherit;
       font-size: 13px;
       resize: none;
       outline: none;
-      min-height: 42px;
+      min-height: 44px;
       max-height: 120px;
-      transition: border-color 0.2s;
+      transition: border-color 0.2s, box-shadow 0.2s;
     }
     .chat-input-wrap textarea:focus {
-      border-color: var(--cybot-border-strong);
+      border-color: var(--cybot-accent-primary);
+      box-shadow: 0 0 0 2px rgba(125, 220, 255, 0.15);
     }
     .chat-input-wrap textarea::placeholder {
-      color: var(--cybot-text-secondary);
+      color: var(--cybot-text-tertiary);
     }
     .chat-input-wrap button {
       background: var(--cybot-accent-primary-soft);
@@ -214,35 +191,59 @@
       color: var(--cybot-accent-primary);
       font-size: 13px;
       font-weight: 600;
-      padding: 0 16px;
+      padding: 0 18px;
       cursor: pointer;
-      transition: background 0.2s;
+      transition: all 0.2s;
     }
-    .chat-input-wrap button:hover { background: var(--cybot-accent-primary-soft); }
-    .chat-input-wrap button:disabled { opacity: 0.4; cursor: default; }
+    .chat-input-wrap button:hover {
+      background: rgba(125, 220, 255, 0.2);
+      border-color: var(--cybot-accent-primary);
+    }
+    .chat-input-wrap button:active { transform: scale(0.97); }
+    .chat-input-wrap button:disabled { opacity: 0.4; cursor: default; pointer-events: none; }
 
     /* ─── HUD ─── */
     .hud {
       position: fixed;
-      top: 12px;
-      left: 12px;
+      top: 16px;
+      left: 16px;
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
-      max-width: calc(100vw - 80px);
-      font-size: 11px;
-      color: var(--cybot-hud-text);
-      letter-spacing: 0.05em;
+      gap: 6px;
+      max-width: calc(100vw - 350px);
       z-index: 100;
       pointer-events: none;
     }
     .hud-chip {
-      background: var(--cybot-surface-glass);
+      background: rgba(5, 8, 22, 0.85);
       border: 1px solid var(--cybot-border-soft);
-      border-radius: 999px;
-      padding: 6px 10px;
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--cybot-accent-primary);
+      letter-spacing: 0.04em;
       backdrop-filter: blur(8px);
+      text-shadow: 0 0 12px rgba(125, 220, 255, 0.3);
     }
+
+    /* ─── Chat Overlay ─── */
+    .chat-overlay {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 400px;
+      max-height: 70vh;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+      z-index: 100;
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .chat-overlay.is-open { opacity: 1; transform: translateY(0); pointer-events: auto; }
 
     /* ─── Loading + Error States ─── */
     .loading-screen {
@@ -329,77 +330,90 @@
     /* ─── Settings Panel ─── */
     .settings-panel {
       position: fixed;
-      top: 12px;
-      right: 12px;
-      width: 280px;
-      background: var(--cybot-surface-glass);
+      bottom: 24px;
+      right: 24px;
+      width: 320px;
+      max-height: 70vh;
+      overflow-y: auto;
+      background: rgba(5, 8, 22, 0.95);
       border: 1px solid var(--cybot-border-soft);
       border-radius: 12px;
-      padding: 16px;
-      z-index: 100;
+      padding: 18px;
+      z-index: 110;
       opacity: 0;
+      transform: translateY(12px);
       pointer-events: none;
-      transition: opacity 0.25s;
+      transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 48px rgba(125, 220, 255, 0.08);
+      backdrop-filter: blur(16px);
     }
-    .settings-panel.is-open { opacity: 1; pointer-events: auto; }
+    .settings-panel.is-open { opacity: 1; transform: translateY(0); pointer-events: auto; }
     .settings-panel h3 {
-      font-size: 12px;
+      font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 0.1em;
       color: var(--cybot-accent-primary);
-      margin-bottom: 12px;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--cybot-border-soft);
     }
     .settings-panel label {
       display: block;
       font-size: 11px;
+      font-weight: 500;
       color: var(--cybot-text-secondary);
-      margin-bottom: 4px;
+      margin-bottom: 6px;
+      letter-spacing: 0.02em;
     }
     .settings-panel select, .settings-panel input[type="text"] {
       width: 100%;
-      background: var(--cybot-surface-2);
+      background: rgba(13, 22, 40, 0.8);
       border: 1px solid var(--cybot-border-soft);
-      border-radius: 6px;
+      border-radius: 8px;
       color: var(--cybot-text-primary);
-      font-size: 12px;
-      padding: 6px 10px;
-      margin-bottom: 12px;
+      font-size: 13px;
+      padding: 8px 12px;
+      margin-bottom: 14px;
       outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
     }
     .settings-panel select:focus, .settings-panel input[type="text"]:focus,
     .settings-panel input[type="color"]:focus, .settings-panel textarea:focus {
-      border-color: var(--cybot-border-strong);
+      border-color: var(--cybot-accent-primary);
+      box-shadow: 0 0 0 2px rgba(125, 220, 255, 0.12);
     }
 
     .settings-panel input[type="color"] {
       width: 100%;
-      height: 34px;
-      background: var(--cybot-surface-2);
+      height: 38px;
+      background: rgba(13, 22, 40, 0.8);
       border: 1px solid var(--cybot-border-soft);
-      border-radius: 6px;
-      margin-bottom: 10px;
-      padding: 2px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      padding: 3px;
+      cursor: pointer;
     }
 
     .settings-panel textarea {
       width: 100%;
-      min-height: 60px;
-      background: var(--cybot-surface-2);
+      min-height: 64px;
+      background: rgba(13, 22, 40, 0.8);
       border: 1px solid var(--cybot-border-soft);
-      border-radius: 6px;
+      border-radius: 8px;
       color: var(--cybot-text-primary);
       font-family: inherit;
-      font-size: 12px;
-      padding: 8px 10px;
-      margin-bottom: 10px;
+      font-size: 13px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
       outline: none;
       resize: vertical;
+      transition: border-color 0.2s;
     }
 
     .settings-panel details {
-      margin-top: 14px;
+      margin-top: 16px;
       border-top: 1px solid var(--cybot-border-soft);
-      padding-top: 12px;
+      padding-top: 14px;
     }
 
     .settings-panel summary {
@@ -409,7 +423,9 @@
       font-weight: 600;
       letter-spacing: 0.08em;
       text-transform: uppercase;
+      padding: 4px 0;
     }
+    .settings-panel summary:hover { color: var(--cybot-text-primary); }
 
     .settings-panel button {
       width: 100%;
@@ -420,12 +436,15 @@
       cursor: pointer;
       font-size: 12px;
       font-weight: 600;
-      padding: 8px 10px;
+      padding: 10px 12px;
+      transition: all 0.2s;
     }
 
     .settings-panel button:hover {
-      background: var(--cybot-border-soft);
+      background: rgba(125, 220, 255, 0.2);
+      border-color: var(--cybot-accent-primary);
     }
+    .settings-panel button:active { transform: scale(0.98); }
 
     .settings-panel .row-2 {
       display: grid;
@@ -434,12 +453,12 @@
     }
 
     @media (max-width: 768px) {
-      .hud { top: 8px; left: 8px; right: 8px; max-width: none; }
-      .hud-chip { font-size: 10px; padding: 5px 8px; }
-      .chat-overlay { bottom: 0; right: 0; width: 100%; max-height: 82vh; padding: 12px; }
-      .chat-overlay .holo-frame { max-width: 90%; }
-      .settings-panel { left: 12px; right: 12px; top: auto; bottom: 12px; width: auto; max-height: 72vh; overflow-y: auto; }
-      .error-banner { bottom: 12px; }
+      .hud { top: 12px; left: 12px; right: 12px; max-width: none; }
+      .hud-chip { font-size: 10px; padding: 4px 8px; }
+      .chat-overlay { bottom: 0; right: 0; width: 100%; max-height: 85vh; padding: 12px; border-radius: 16px 16px 0 0; }
+      .chat-overlay .holo-frame { max-width: 92%; }
+      .settings-panel { left: 12px; right: 12px; bottom: 0; width: auto; max-height: 75vh; border-radius: 16px 16px 0 0; }
+      .error-banner { bottom: 12px; left: 12px; right: 12px; width: auto; transform: none; }
     }
   </style>
 </head>
