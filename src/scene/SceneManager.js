@@ -108,6 +108,9 @@ export class SceneManager {
     this.minFrameTime = 1000 / this.settings.animationFps;
     this.lastFrameTime = 0;
     this.isVisible = true;
+    this.currentFps = 0;
+    this.frameCount = 0;
+    this.fpsTime = performance.now();
 
     // Resize handler
     this.onResize = this.onResize.bind(this);
@@ -158,16 +161,16 @@ export class SceneManager {
       this.renderer.render(this.scene, this.camera);
     }
 
-    // Update FPS counter
-    if (this.showFps) {
-      this.frameCount++;
-      const now = performance.now();
-      if (now - this.fpsTime >= 1000) {
-        this.currentFps = Math.round((this.frameCount * 1000) / (now - this.fpsTime));
+    // FPS counter (always track, display only with ?fps flag)
+    this.frameCount++;
+    const now = performance.now();
+    if (now - this.fpsTime >= 1000) {
+      this.currentFps = Math.round((this.frameCount * 1000) / (now - this.fpsTime));
+      if (this.showFps && this.fpsDiv) {
         this.fpsDiv.textContent = `FPS: ${this.currentFps} | GPU: ${this.gpuInfo.renderer}`;
-        this.frameCount = 0;
-        this.fpsTime = now;
       }
+      this.frameCount = 0;
+      this.fpsTime = now;
     }
   }
 
