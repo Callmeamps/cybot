@@ -108,9 +108,27 @@ export class SceneManager {
     this.minFrameTime = 1000 / this.settings.animationFps;
     this.lastFrameTime = 0;
     this.isVisible = true;
-    this.currentFps = 0;
-    this.frameCount = 0;
-    this.fpsTime = performance.now();
+
+    // FPS state — stored as explicit properties to survive minification
+    this._fpsState = { currentFps: 0, frameCount: 0, fpsTime: performance.now() };
+    Object.defineProperty(this, 'currentFps', {
+      get() { return this._fpsState.currentFps; },
+      set(v) { this._fpsState.currentFps = v; },
+      enumerable: true,
+      configurable: true
+    });
+    Object.defineProperty(this, 'frameCount', {
+      get() { return this._fpsState.frameCount; },
+      set(v) { this._fpsState.frameCount = v; },
+      enumerable: true,
+      configurable: true
+    });
+    Object.defineProperty(this, 'fpsTime', {
+      get() { return this._fpsState.fpsTime; },
+      set(v) { this._fpsState.fpsTime = v; },
+      enumerable: true,
+      configurable: true
+    });
 
     // Resize handler
     this.onResize = this.onResize.bind(this);
@@ -125,9 +143,6 @@ export class SceneManager {
     this.fpsDiv = document.createElement('div');
     this.fpsDiv.style.cssText = 'position:fixed;top:8px;left:8px;color:#0f0;font:14px monospace;z-index:9999;';
     document.body.appendChild(this.fpsDiv);
-    this.frameCount = 0;
-    this.fpsTime = performance.now();
-    this.currentFps = 0;
   }
 
   onResize() {
