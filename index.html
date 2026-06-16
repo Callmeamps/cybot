@@ -330,24 +330,34 @@
     /* ─── Settings Panel ─── */
     .settings-panel {
       position: fixed;
-      bottom: 24px;
-      right: 24px;
-      width: 320px;
-      max-height: 70vh;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.95);
+      width: min(380px, calc(100vw - 32px));
+      max-height: 80vh;
       overflow-y: auto;
-      background: rgba(5, 8, 22, 0.95);
+      background: rgba(5, 8, 22, 0.98);
       border: 1px solid var(--cybot-border-soft);
-      border-radius: 12px;
-      padding: 18px;
-      z-index: 110;
+      border-radius: 16px;
+      padding: 24px;
+      z-index: 150;
       opacity: 0;
-      transform: translateY(12px);
       pointer-events: none;
       transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 48px rgba(125, 220, 255, 0.08);
-      backdrop-filter: blur(16px);
+      box-shadow: 0 16px 64px rgba(0, 0, 0, 0.7), 0 0 80px rgba(125, 220, 255, 0.1);
+      backdrop-filter: blur(20px);
     }
-    .settings-panel.is-open { opacity: 1; transform: translateY(0); pointer-events: auto; }
+    .settings-panel.is-open { opacity: 1; transform: translate(-50%, -50%) scale(1); pointer-events: auto; }
+    .settings-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 140;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s;
+    }
+    .settings-backdrop.is-open { opacity: 1; pointer-events: auto; }
     .settings-panel h3 {
       font-size: 11px;
       text-transform: uppercase;
@@ -457,7 +467,7 @@
       .hud-chip { font-size: 10px; padding: 4px 8px; }
       .chat-overlay { bottom: 0; right: 0; width: 100%; max-height: 85vh; padding: 12px; border-radius: 16px 16px 0 0; }
       .chat-overlay .holo-frame { max-width: 92%; }
-      .settings-panel { left: 12px; right: 12px; bottom: 0; width: auto; max-height: 75vh; border-radius: 16px 16px 0 0; }
+      .settings-panel { width: calc(100vw - 24px); max-height: 85vh; padding: 20px; }
       .error-banner { bottom: 12px; left: 12px; right: 12px; width: auto; transform: none; }
     }
   </style>
@@ -526,6 +536,7 @@
     </div>
 
     <!-- Settings -->
+    <div class="settings-backdrop" :class="{ 'is-open': isSettingsOpen }" @click="isSettingsOpen = false"></div>
     <div class="settings-panel" :class="{ 'is-open': isSettingsOpen }">
       <h3>Settings</h3>
       <label>Theme</label>
